@@ -12,14 +12,14 @@ function M.get_lsp_errors(buffer, line_count)
     table.insert(error_lines, { warn = false, err = false })
   end
 
-  local errors = diagnostic.get(buffer, { severity = { min = diagnostic.severity.WARN } })
+  local errors = diagnostic.get(buffer)
   for _, v in ipairs(errors) do
     local line_idx = v.lnum + 1
     if line_idx <= line_count then
-      if v.severity == diagnostic.severity.WARN then
-        error_lines[line_idx].warn = true
-      else
+      if v.severity == diagnostic.severity.ERROR then
         error_lines[line_idx].err = true
+      elseif v.severity == diagnostic.severity.WARN then
+        error_lines[line_idx].warn = true
       end
     end
   end
