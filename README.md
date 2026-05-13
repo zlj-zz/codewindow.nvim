@@ -10,6 +10,8 @@ Codewindow.nvim is a minimap plugin for neovim, that is closely integrated with 
 - Treesitter parsers installed for filetypes you want highlighted (e.g. via [nvim-treesitter](https://github.com/nvim-treesitter/nvim-treesitter))
 
 > **Note:** This plugin uses Neovim's built-in `vim.treesitter` API. It does not depend on the `nvim-treesitter` plugin itself, but you will need the appropriate parsers installed for syntax highlighting to work.
+>
+> **Checking parser installation:** Run `:checkhealth nvim-treesitter` to verify parsers are installed. If a language shows as missing, install it with `:TSInstall <language>` (e.g. `:TSInstall python`). You can also run `:TSInstallInfo` to see all available parsers and their installation status.
 
 ## How it works
 
