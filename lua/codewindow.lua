@@ -1,8 +1,8 @@
 local M = {}
 
-local minimap_txt = require('codewindow.text')
 local minimap_win = require('codewindow.window')
 local minimap_hl  = require('codewindow.highlight')
+local renderer    = require('codewindow.renderer')
 
 local defer = vim.schedule
 local api = vim.api
@@ -22,7 +22,7 @@ function M.open_minimap()
     return
   end
 
-  minimap_txt.update_minimap(current_buffer, window)
+  renderer.render(window, current_buffer)
 end
 
 function M.close_minimap()

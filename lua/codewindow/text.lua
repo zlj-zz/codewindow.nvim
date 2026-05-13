@@ -1,16 +1,13 @@
 local M = {}
 
-local minimap_hl = require('codewindow.highlight')
-local minimap_err = require('codewindow.errors')
 local utils = require('codewindow.utils')
-
 local api = vim.api
 
 local function is_whitespace(chr)
   return chr == " " or chr == "\t" or chr == ""
 end
 
-local function compress_text(lines)
+function M.compress_text(lines)
   local config = require('codewindow.config').get()
   local tab2chars = string.rep(" ", vim.bo.tabstop)
   local scanned_text = {}
@@ -58,59 +55,6 @@ local function compress_text(lines)
   end
 
   return minimap_text
-end
-
-function M.update_minimap(current_buffer, window)
-  if not api.nvim_buf_is_valid(current_buffer or -1) then return end
-  local config = require('codewindow.config').get()
-
-  api.nvim_buf_set_option(window.buffer, 'modifiable', true)
-  local lines = api.nvim_buf_get_lines(current_buffer, 0, -1, true)
-
-  local minimap_text = compress_text(lines)
-
-  local placeholder_str = string.rep(utils.flag_to_char(0), 2)
-
-  local text = {}
-
-  local error_text
-  if config.use_lsp then
-    error_text = minimap_err.get_lsp_errors(current_buffer, #lines)
-  else
-    error_text = {}
-  end
-
-  local git_text
-  if config.use_git then
-    local git = require('codewindow.git')
-    git_text = git.get_git_text(lines, current_buffer)
-    git.refresh(current_buffer, function()
-      if api.nvim_win_is_valid(window.window or -1)
-         and api.nvim_win_get_buf(window.parent_win or -1) == current_buffer then
-        M.update_minimap(current_buffer, window)
-      end
-    end)
-  else
-    git_text = {}
-  end
-  for i = 1, #minimap_text do
-    local line = (error_text[i] or placeholder_str)
-        .. minimap_text[i]
-        .. (git_text[i] or placeholder_str)
-    text[i] = line
-  end
-
-  api.nvim_buf_set_lines(window.buffer, 0, -1, true, text)
-
-  local highlights = minimap_hl.extract_highlighting(current_buffer, lines)
-  minimap_hl.apply_highlight(highlights, window.buffer, lines)
-
-  if config.show_cursor then
-    minimap_hl.display_cursor(window)
-  end
-
-  minimap_hl.display_screen_bounds(window)
-  api.nvim_buf_set_option(window.buffer, 'modifiable', false)
 end
 
 return M

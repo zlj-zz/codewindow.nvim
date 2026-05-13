@@ -1,8 +1,8 @@
 local M = {}
 
 local utils = require('codewindow.utils')
-local minimap_txt = require('codewindow.text')
 local minimap_hl = require('codewindow.highlight')
+local renderer = require('codewindow.renderer')
 local config = require('codewindow.config').get()
 local window = nil
 
@@ -41,9 +41,9 @@ local function display_screen_bounds()
   local ok = pcall(minimap_hl.display_screen_bounds, window)
   if not ok then
     defer(function()
-      minimap_txt.update_minimap(
-        api.nvim_win_get_buf(window.parent_win), 
-        window
+      renderer.render(
+        window,
+        api.nvim_win_get_buf(window.parent_win)
       )
       minimap_hl.display_screen_bounds(window)
     end)
@@ -145,7 +145,7 @@ local function setup_minimap_autocmds(parent_buf, on_switch_window, on_cursor_mo
     buffer = parent_buf,
     callback = function()
       defer(function()
-        minimap_txt.update_minimap(api.nvim_win_get_buf(window.parent_win), window)
+        renderer.render(window, api.nvim_win_get_buf(window.parent_win))
       end)
     end,
     group = augroup,
