@@ -66,6 +66,7 @@ function M.close_minimap()
   if augroup then
     api.nvim_clear_autocmds({ group = augroup })
   end
+  require('codewindow.git').clear(window.parent_win and vim.api.nvim_win_get_buf(window.parent_win) or nil)
   window = nil
 end
 
@@ -160,6 +161,9 @@ local function setup_minimap_autocmds(parent_buf, on_switch_window, on_cursor_mo
   api.nvim_create_autocmd({ 'WinEnter', 'BufEnter' }, {
     callback = function(args)
       if args.buf == window.buffer then
+        if not window.focused and api.nvim_win_is_valid(window.parent_win) then
+          api.nvim_set_current_win(window.parent_win)
+        end
         return
       end
       on_switch_window()

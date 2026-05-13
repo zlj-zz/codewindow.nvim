@@ -82,7 +82,14 @@ function M.update_minimap(current_buffer, window)
 
   local git_text
   if config.use_git then
-    git_text = require('codewindow.git').parse_git_diff(lines)
+    local git = require('codewindow.git')
+    git_text = git.get_git_text(lines, current_buffer)
+    git.refresh(current_buffer, function()
+      if api.nvim_win_is_valid(window.window or -1)
+         and api.nvim_win_get_buf(window.parent_win or -1) == current_buffer then
+        M.update_minimap(current_buffer, window)
+      end
+    end)
   else
     git_text = {}
   end
