@@ -44,6 +44,7 @@ The setup method accepts an optional table as an argument with the following opt
 ```lua
 {
   active_in_terminals = false, -- Should the minimap activate for terminal buffers
+  auto_close = true, -- Automatically close the minimap when quitting Neovim if it's the only remaining window
   auto_enable = false, -- Automatically open the minimap when entering a (non-excluded) buffer (accepts a boolean or a table of filetypes)
   exclude_filetypes = { 'help' }, -- Choose certain filetypes to not show minimap on
   max_minimap_height = nil, -- The maximum height the minimap can take (including borders)

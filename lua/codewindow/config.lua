@@ -2,6 +2,7 @@ local M = {}
 
 local config = {
   active_in_terminals = false,
+  auto_close = true,
   auto_enable = false,
   exclude_filetypes = { "help" },
   max_lines = nil,

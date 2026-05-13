@@ -1,9 +1,9 @@
 local M = {}
 
-local utils = require('codewindow.utils')
-local minimap_hl = require('codewindow.highlight')
-local renderer = require('codewindow.renderer')
-local config = require('codewindow.config').get()
+local utils = require("codewindow.utils")
+local minimap_hl = require("codewindow.highlight")
+local renderer = require("codewindow.renderer")
+local config = require("codewindow.config").get()
 local window = nil
 
 local api = vim.api
@@ -21,10 +21,10 @@ local function center_minimap()
   local minimap_top = utils.get_top_line(window.window)
   local minimap_bot = utils.get_bot_line(window.window)
 
-  local top_diff = top_y - minimap_top;
-  local bot_diff = minimap_bot - bot_y;
+  local top_diff = top_y - minimap_top
+  local bot_diff = minimap_bot - bot_y
 
-  local diff = top_diff - bot_diff;
+  local diff = top_diff - bot_diff
   if math.abs(diff) <= 1 then
     return
   end
@@ -41,10 +41,7 @@ local function display_screen_bounds()
   local ok = pcall(minimap_hl.display_screen_bounds, window)
   if not ok then
     defer(function()
-      renderer.render(
-        window,
-        api.nvim_win_get_buf(window.parent_win)
-      )
+      renderer.render(window, api.nvim_win_get_buf(window.parent_win))
       minimap_hl.display_screen_bounds(window)
     end)
   end
@@ -65,7 +62,7 @@ local closing = false
 
 local function hide_cursor()
   saved_guicursor = vim.o.guicursor
-  vim.o.guicursor = 'a:ver1'
+  vim.o.guicursor = "a:ver1"
 end
 
 local function restore_cursor()
@@ -95,13 +92,16 @@ function M.close_minimap()
   end
   restore_cursor()
   if api.nvim_buf_is_valid(window.buffer or -1) then
-    api.nvim_buf_delete(window.buffer, { force = true });
+    api.nvim_buf_delete(window.buffer, { force = true })
   end
   if augroup then
     api.nvim_clear_autocmds({ group = augroup })
   end
-  local parent_buf = window.parent_win and api.nvim_win_is_valid(window.parent_win) and api.nvim_win_get_buf(window.parent_win) or nil
-  require('codewindow.git').clear(parent_buf)
+  local parent_buf = window.parent_win
+      and api.nvim_win_is_valid(window.parent_win)
+      and api.nvim_win_get_buf(window.parent_win)
+    or nil
+  require("codewindow.git").clear(parent_buf)
   window = nil
   closing = false
 end
@@ -133,16 +133,18 @@ local function get_window_config(current_window)
     col = col,
     focusable = false,
     zindex = config.z_index,
-    style = 'minimal',
+    style = "minimal",
     border = config.window_border,
   }
 end
 
 local function setup_minimap_autocmds(parent_buf, on_switch_window, on_cursor_move)
-  augroup = api.nvim_create_augroup('CodewindowAugroup', {})
+  augroup = api.nvim_create_augroup("CodewindowAugroup", {})
 
-  if not api.nvim_buf_is_valid(parent_buf or -1) then return end
-  api.nvim_create_autocmd({ 'WinScrolled' }, {
+  if not api.nvim_buf_is_valid(parent_buf or -1) then
+    return
+  end
+  api.nvim_create_autocmd({ "WinScrolled" }, {
     buffer = parent_buf,
     callback = function()
       defer(function()
@@ -158,7 +160,7 @@ local function setup_minimap_autocmds(parent_buf, on_switch_window, on_cursor_mo
   api.nvim_create_autocmd(config.events, {
     buffer = parent_buf,
     callback = function(args)
-      if args.event == 'TextChanged' then
+      if args.event == "TextChanged" then
         if not render_timer then
           render_timer = (vim.uv or vim.loop).new_timer()
         end
@@ -174,7 +176,7 @@ local function setup_minimap_autocmds(parent_buf, on_switch_window, on_cursor_mo
     end,
     group = augroup,
   })
-  api.nvim_create_autocmd({ 'BufDelete' }, {
+  api.nvim_create_autocmd({ "BufDelete" }, {
     buffer = parent_buf,
     callback = function(args)
       renderer.clear_cache(args.buf)
@@ -182,8 +184,10 @@ local function setup_minimap_autocmds(parent_buf, on_switch_window, on_cursor_mo
     group = augroup,
   })
 
-  if not api.nvim_buf_is_valid(window.buffer or -1) then return end
-  api.nvim_create_autocmd({ 'BufWinLeave' }, {
+  if not api.nvim_buf_is_valid(window.buffer or -1) then
+    return
+  end
+  api.nvim_create_autocmd({ "BufWinLeave" }, {
     buffer = window.buffer,
     callback = function()
       defer(function()
@@ -202,16 +206,16 @@ local function setup_minimap_autocmds(parent_buf, on_switch_window, on_cursor_mo
     end,
     group = augroup,
   })
-  api.nvim_create_autocmd({ 'WinClosed' }, {
+  api.nvim_create_autocmd({ "WinClosed" }, {
     buffer = window.buffer,
     callback = function()
       if window == nil then
         return
       end
       M.close_minimap()
-    end
+    end,
   })
-  api.nvim_create_autocmd({ 'WinEnter', 'BufEnter' }, {
+  api.nvim_create_autocmd({ "WinEnter", "BufEnter" }, {
     callback = function(args)
       if args.buf == window.buffer then
         if not window.focused and api.nvim_win_is_valid(window.parent_win) then
@@ -221,18 +225,29 @@ local function setup_minimap_autocmds(parent_buf, on_switch_window, on_cursor_mo
       end
       on_switch_window()
     end,
-    group = augroup
+    group = augroup,
   })
 
-  api.nvim_create_autocmd({ 'VimLeavePre', 'SessionLoadPost' }, {
+  api.nvim_create_autocmd({ "VimLeavePre", "SessionLoadPost" }, {
     callback = function()
       if window then
         M.close_minimap()
       end
-    end
+    end,
   })
 
-  api.nvim_create_autocmd({ 'CursorMoved' }, {
+  if config.auto_close ~= false then
+    api.nvim_create_autocmd({ "QuitPre" }, {
+      callback = function()
+        if window then
+          M.close_minimap()
+        end
+      end,
+      group = augroup,
+    })
+  end
+
+  api.nvim_create_autocmd({ "CursorMoved" }, {
     buffer = window.buffer,
     callback = function()
       local topline = utils.get_top_line(window.parent_win)
@@ -246,23 +261,22 @@ local function setup_minimap_autocmds(parent_buf, on_switch_window, on_cursor_mo
   })
 
   if config.show_cursor then
-    api.nvim_create_autocmd({ 'CursorMoved' }, {
+    api.nvim_create_autocmd({ "CursorMoved" }, {
       callback = function()
         on_cursor_move()
       end,
-      group = augroup
+      group = augroup,
     })
   end
 end
 
 local function should_ignore(current_window)
-
   local win_info = vim.fn.getwininfo(current_window)
   if not config.active_in_terminals and win_info[1].terminal == 1 then
     return true
   end
 
-  if vim.bo.buftype ~= '' then
+  if vim.bo.buftype ~= "" then
     return true
   end
   local filetype = vim.bo.filetype
@@ -281,9 +295,7 @@ function M.create_window(buffer, on_switch_window, on_cursor_move)
     if window == nil then
       return nil
     else
-      if api.nvim_win_is_valid(window.parent_win)
-        and api.nvim_win_is_valid(window.window)
-      then
+      if api.nvim_win_is_valid(window.parent_win) and api.nvim_win_is_valid(window.window) then
         api.nvim_win_set_config(window.window, get_window_config(window.parent_win))
         return nil
       else
@@ -310,13 +322,12 @@ function M.create_window(buffer, on_switch_window, on_cursor_move)
     window.focused = false
   else
     local minimap_buf = api.nvim_create_buf(false, true)
-    api.nvim_buf_set_name(minimap_buf, 'CodeWindow')
-    api.nvim_buf_set_option(minimap_buf, 'filetype', 'Codewindow')
+    api.nvim_buf_set_name(minimap_buf, "CodeWindow")
+    api.nvim_buf_set_option(minimap_buf, "filetype", "Codewindow")
 
     local minimap_win = api.nvim_open_win(minimap_buf, false, get_window_config(current_window))
 
-    api.nvim_win_set_option(minimap_win, 'winhl',
-      'Normal:CodewindowBackground,FloatBorder:CodewindowBorder')
+    api.nvim_win_set_option(minimap_win, "winhl", "Normal:CodewindowBackground,FloatBorder:CodewindowBorder")
 
     window = {
       buffer = minimap_buf,
@@ -362,7 +373,7 @@ end
 
 function M.scroll_minimap_by_page(amount)
   local window_height = api.nvim_win_get_height(window.parent_win)
-  local actual_amount = math.floor(window_height * amount);
+  local actual_amount = math.floor(window_height * amount)
   actual_amount = actual_amount + (4 - actual_amount % 4) % 4
   scroll_parent_window(actual_amount)
   utils.scroll_window(window.window, actual_amount / 4)
