@@ -53,7 +53,7 @@ local function most_commons(highlight)
 end
 
 local function extract_highlighting(buffer, lines)
-  if not api.nvim_buf_is_valid(buffer) then
+  if not api.nvim_buf_is_valid(buffer or -1) then
     return
   end
 
@@ -258,7 +258,7 @@ function M.display_cursor(window)
     return
   end
 
-  if api.nvim_buf_is_valid(window.buffer) then
+  if api.nvim_buf_is_valid(window.buffer or -1) then
     api.nvim_buf_clear_namespace(window.buffer, cursor_namespace, 0, -1)
   end
   if not api.nvim_win_is_valid(window.parent_win) then
@@ -271,7 +271,7 @@ function M.display_cursor(window)
   minimap_x = minimap_x + 2 - 1
   minimap_y = minimap_y - 1
 
-  if api.nvim_buf_is_valid(window.buffer) then
+  if api.nvim_buf_is_valid(window.buffer or -1) then
     api.nvim_buf_add_highlight(window.buffer, cursor_namespace, "Cursor", minimap_y, minimap_x * 3, minimap_x * 3 + 3)
   end
 end

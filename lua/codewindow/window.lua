@@ -81,7 +81,7 @@ function M.close_minimap()
   end
   closing = true
   restore_cursor()
-  if api.nvim_buf_is_valid(window.buffer) then
+  if api.nvim_buf_is_valid(window.buffer or -1) then
     api.nvim_buf_delete(window.buffer, { force = true });
   end
   if augroup then
