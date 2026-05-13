@@ -4,8 +4,8 @@ local get_line = vim.fn.line
 local exe = vim.cmd.execute
 local api = vim.api
 
-function M.buf_to_minimap(col0, row0)
-  local config = require('codewindow.config').get()
+function M.buf_to_minimap(col0, row0, cfg)
+  local config = cfg or require('codewindow.config').get()
   local minimap_x_idx = math.floor(col0 / config.width_multiplier / 2) + 1
   local minimap_y_idx = math.floor(row0 / 4) + 1
   return minimap_x_idx, minimap_y_idx

@@ -130,7 +130,9 @@ function M.refresh(bufnr, callback)
 end
 
 function M.clear(bufnr)
-  buf_state[bufnr] = nil
+  if bufnr then
+    buf_state[bufnr] = nil
+  end
 end
 
 return M

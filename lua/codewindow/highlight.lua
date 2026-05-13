@@ -103,7 +103,7 @@ local function extract_highlighting(buffer, lines)
           local last_row0 = math.max(start_row0, math.min(end_row0 - 1, line_count - 1))
           for row0 = start_row0, last_row0 do
             for col0 = start_col0, math.min(end_col0 - 1, minimap_char_width - 1) do
-              local minimap_x_idx, minimap_y_idx = utils.buf_to_minimap(col0, row0)
+              local minimap_x_idx, minimap_y_idx = utils.buf_to_minimap(col0, row0, config)
               highlights[minimap_y_idx][minimap_x_idx][c] = (highlights[minimap_y_idx][minimap_x_idx][c] or 0) + 1
             end
           end
@@ -114,7 +114,10 @@ local function extract_highlighting(buffer, lines)
 
   for y = 1, minimap_height do
     for x = 1, minimap_width do
-      highlights[y][x] = most_commons(highlights[y][x])
+      local cell = highlights[y][x]
+      if next(cell) then
+        highlights[y][x] = most_commons(cell)
+      end
     end
   end
 

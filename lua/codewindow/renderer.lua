@@ -6,6 +6,8 @@ local minimap_hl = require('codewindow.highlight')
 local minimap_err = require('codewindow.errors')
 local utils = require('codewindow.utils')
 
+local render_cache = {}
+
 local function build_lines(minimap_text, error_text, git_text)
   local placeholder = string.rep(utils.flag_to_char(0), 2)
   local text = {}
@@ -18,6 +20,14 @@ local function build_lines(minimap_text, error_text, git_text)
   return text
 end
 
+function M.clear_cache(buffer)
+  if buffer then
+    render_cache[buffer] = nil
+  else
+    render_cache = {}
+  end
+end
+
 function M.render(window, current_buffer)
   if not api.nvim_buf_is_valid(current_buffer or -1) then return end
   local config = require('codewindow.config').get()
@@ -25,7 +35,24 @@ function M.render(window, current_buffer)
   api.nvim_buf_set_option(window.buffer, 'modifiable', true)
   local lines = api.nvim_buf_get_lines(current_buffer, 0, -1, true)
 
-  local minimap_text = minimap_txt.compress_text(lines)
+  if config.max_lines and #lines > config.max_lines then
+    api.nvim_buf_set_lines(window.buffer, 0, -1, true, {})
+    api.nvim_buf_set_option(window.buffer, 'modifiable', false)
+    render_cache[current_buffer] = nil
+    return
+  end
+
+  local tick = api.nvim_buf_get_changedtick(current_buffer)
+  local cached = render_cache[current_buffer]
+  local needs_recompute = not cached or cached.tick ~= tick
+  local minimap_text
+
+  if needs_recompute then
+    minimap_text = minimap_txt.compress_text(lines)
+    render_cache[current_buffer] = { tick = tick, minimap_text = minimap_text }
+  else
+    minimap_text = cached.minimap_text
+  end
 
   local error_text
   if config.use_lsp then
@@ -52,7 +79,13 @@ function M.render(window, current_buffer)
 
   api.nvim_buf_set_lines(window.buffer, 0, -1, true, text)
 
-  local highlights = minimap_hl.extract_highlighting(current_buffer, lines)
+  local highlights
+  if needs_recompute then
+    highlights = minimap_hl.extract_highlighting(current_buffer, lines)
+    render_cache[current_buffer].highlights = highlights
+  else
+    highlights = cached.highlights
+  end
   minimap_hl.apply_highlight(highlights, window.buffer, lines)
 
   if config.show_cursor then

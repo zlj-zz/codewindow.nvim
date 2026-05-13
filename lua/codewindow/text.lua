@@ -10,6 +10,8 @@ end
 function M.compress_text(lines)
   local config = require('codewindow.config').get()
   local tab2chars = string.rep(" ", vim.bo.tabstop)
+  local minimap_width2 = config.minimap_width * 2
+  local width_mult = config.width_multiplier
   local scanned_text = {}
   for _ = 1, math.ceil(#lines / 4) do
     local line = {}
@@ -21,18 +23,20 @@ function M.compress_text(lines)
 
   for line_idx = 1, #lines do
     local row0 = line_idx - 1
-    local current_line = lines[line_idx]:gsub("\t", tab2chars)
-    for braille_x0 = 0, config.minimap_width * 2 - 1 do
-
+    local current_line = lines[line_idx]
+    if current_line:find("\t") then
+      current_line = current_line:gsub("\t", tab2chars)
+    end
+    for braille_x0 = 0, minimap_width2 - 1 do
       local any_printable = false
-      for dx = 0, config.width_multiplier - 1 do
-        local buf_col0 = braille_x0 * config.width_multiplier + dx
+      for dx = 0, width_mult - 1 do
+        local buf_col0 = braille_x0 * width_mult + dx
         local chr = current_line:sub(buf_col0 + 1, buf_col0 + 1)
         if not is_whitespace(chr) then
           any_printable = true
+          break
         end
       end
-
       if any_printable then
         local flag = utils.coord_to_flag(braille_x0, row0)
         local minimap_x_idx = math.floor(braille_x0 / 2) + 1

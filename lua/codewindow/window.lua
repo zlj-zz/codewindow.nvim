@@ -58,6 +58,7 @@ local function scroll_parent_window(amount)
 end
 
 local augroup
+local render_timer = nil
 
 local saved_guicursor = nil
 local closing = false
@@ -75,11 +76,23 @@ local function restore_cursor()
   saved_guicursor = nil
 end
 
+local function on_render_timer()
+  render_timer:stop()
+  if window and api.nvim_win_is_valid(window.parent_win or -1) then
+    renderer.render(window, api.nvim_win_get_buf(window.parent_win))
+  end
+end
+
 function M.close_minimap()
   if window == nil or closing then
     return
   end
   closing = true
+  if render_timer then
+    render_timer:stop()
+    render_timer:close()
+    render_timer = nil
+  end
   restore_cursor()
   if api.nvim_buf_is_valid(window.buffer or -1) then
     api.nvim_buf_delete(window.buffer, { force = true });
@@ -87,7 +100,8 @@ function M.close_minimap()
   if augroup then
     api.nvim_clear_autocmds({ group = augroup })
   end
-  require('codewindow.git').clear(window.parent_win and vim.api.nvim_win_get_buf(window.parent_win) or nil)
+  local parent_buf = window.parent_win and api.nvim_win_is_valid(window.parent_win) and api.nvim_win_get_buf(window.parent_win) or nil
+  require('codewindow.git').clear(parent_buf)
   window = nil
   closing = false
 end
@@ -143,10 +157,25 @@ local function setup_minimap_autocmds(parent_buf, on_switch_window, on_cursor_mo
   })
   api.nvim_create_autocmd(config.events, {
     buffer = parent_buf,
-    callback = function()
-      defer(function()
-        renderer.render(window, api.nvim_win_get_buf(window.parent_win))
-      end)
+    callback = function(args)
+      if args.event == 'TextChanged' then
+        if not render_timer then
+          render_timer = (vim.uv or vim.loop).new_timer()
+        end
+        render_timer:stop()
+        render_timer:start(80, 0, vim.schedule_wrap(on_render_timer))
+      else
+        defer(function()
+          renderer.render(window, api.nvim_win_get_buf(window.parent_win))
+        end)
+      end
+    end,
+    group = augroup,
+  })
+  api.nvim_create_autocmd({ 'BufDelete' }, {
+    buffer = parent_buf,
+    callback = function(args)
+      renderer.clear_cache(args.buf)
     end,
     group = augroup,
   })
