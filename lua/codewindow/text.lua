@@ -46,12 +46,15 @@ local function compress_text(lines)
   end
 
   local minimap_text = {}
+  local parts = {}
+  for _ = 1, config.minimap_width do
+    table.insert(parts, "")
+  end
   for y = 1, #scanned_text do
-    local line = ""
-    for _, flag in ipairs(scanned_text[y]) do
-      line = line .. utils.flag_to_char(flag)
+    for x, flag in ipairs(scanned_text[y]) do
+      parts[x] = utils.flag_to_char(flag)
     end
-    table.insert(minimap_text, line)
+    minimap_text[y] = table.concat(parts, "", 1, config.minimap_width)
   end
 
   return minimap_text
