@@ -86,6 +86,26 @@ function M.setup(config)
       end
     end
   })
+
+  -- Eagerly open for the current buffer if setup runs after BufEnter
+  local current_buf = api.nvim_get_current_buf()
+  local current_ft = vim.bo[current_buf].filetype
+  if type(config.auto_enable) == 'boolean' then
+    if config.auto_enable
+      and (not config.max_lines or api.nvim_buf_line_count(current_buf) <= config.max_lines)
+      and not (vim.bo[current_buf].buftype == 'terminal' and not config.active_in_terminals)
+      and vim.bo[current_buf].buftype == ''
+    then
+      defer(M.open_minimap)
+    end
+  else
+    for _, v in ipairs(config.auto_enable) do
+      if v == current_ft then
+        defer(M.open_minimap)
+        break
+      end
+    end
+  end
 end
 
 return M
