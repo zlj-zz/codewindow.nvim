@@ -3,7 +3,6 @@ local M = {}
 local config = require("codewindow.config").get()
 local utils = require("codewindow.utils")
 local highlighter
-local ts_utils
 
 local hl_namespace
 local screenbounds_namespace
@@ -99,8 +98,11 @@ local function extract_highlighting(buffer, lines)
       if hl then
         local c = query._query.captures[capture]
         if c ~= nil then
-          local start_row, start_col, end_row, end_col =
-            ts_utils.get_vim_range({ vim.treesitter.get_node_range(node) }, buffer)
+          local start_row, start_col, end_row, end_col = vim.treesitter.get_node_range(node)
+          start_row = start_row + 1
+          start_col = start_col + 1
+          end_row = end_row + 1
+          end_col = end_col + 1
 
           for y = start_row, end_row do
             for x = start_col, math.min(end_col, minimap_char_width) do
@@ -124,7 +126,6 @@ end
 
 if config.use_treesitter then
   highlighter = require("vim.treesitter.highlighter")
-  ts_utils = require("nvim-treesitter.ts_utils")
   M.extract_highlighting = extract_highlighting
 else
   M.extract_highlighting = function() end
