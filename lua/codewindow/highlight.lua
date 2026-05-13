@@ -2,7 +2,6 @@ local M = {}
 
 local config = require("codewindow.config").get()
 local utils = require("codewindow.utils")
-local highlighter
 
 local hl_namespace
 local screenbounds_namespace
@@ -36,30 +35,25 @@ end
 
 local function most_commons(highlight)
   local max = 0
-  for _, count in pairs(highlight) do
-    if count > max then
-      max = count
-    end
-  end
-
   local result = {}
   for entry, count in pairs(highlight) do
-    if count == max then
+    if count > max then
+      max = count
+      result = { entry }
+    elseif count == max then
       table.insert(result, entry)
     end
   end
-
   return result
 end
 
-local function extract_highlighting(buffer, lines)
-  if not api.nvim_buf_is_valid(buffer or -1) then
+function M.extract_highlighting(buffer, lines)
+  if not config.use_treesitter or not api.nvim_buf_is_valid(buffer or -1) then
     return
   end
 
-  local buf_highlighter = highlighter.active[buffer]
-
-  if buf_highlighter == nil then
+  local ok, parser = pcall(vim.treesitter.get_parser, buffer)
+  if not ok or parser == nil then
     return
   end
 
@@ -78,26 +72,21 @@ local function extract_highlighting(buffer, lines)
     table.insert(highlights, line)
   end
 
-  buf_highlighter.tree:for_each_tree(function(tstree, tree)
-    if not tstree then
-      return
-    end
+  local lang = parser:lang()
+  local query = vim.treesitter.query.get(lang, "highlights")
+  if not query then
+    return highlights
+  end
 
-    local root = tstree:root()
+  local trees = parser:parse()
+  for _, tstree in ipairs(trees) do
+    if tstree then
+      local root = tstree:root()
+      local iter = query:iter_captures(root, buffer, 0, line_count + 1)
 
-    local query = buf_highlighter:get_query(tree:lang())
-
-    if not query:query() then
-      return
-    end
-
-    local iter = query:query():iter_captures(root, buf_highlighter.bufnr, 0, line_count + 1)
-
-    for capture, node, _ in iter do
-      local c = query:query().captures[capture]
-      if c ~= nil then
-        local hl = query.hl_cache[capture]
-        if hl then
+      for capture, node, _ in iter do
+        local c = query.captures[capture]
+        if c ~= nil then
           local start_row0, start_col0, end_row0, end_col0 = vim.treesitter.get_node_range(node)
 
           local last_row0 = math.max(start_row0, math.min(end_row0 - 1, line_count - 1))
@@ -110,7 +99,7 @@ local function extract_highlighting(buffer, lines)
         end
       end
     end
-  end, true)
+  end
 
   for y = 1, minimap_height do
     for x = 1, minimap_width do
@@ -122,13 +111,6 @@ local function extract_highlighting(buffer, lines)
   end
 
   return highlights
-end
-
-if config.use_treesitter then
-  highlighter = require("vim.treesitter.highlighter")
-  M.extract_highlighting = extract_highlighting
-else
-  M.extract_highlighting = function() end
 end
 
 local function contains_group(cell, group)
