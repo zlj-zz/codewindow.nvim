@@ -4,11 +4,11 @@ local get_line = vim.fn.line
 local exe = vim.cmd.execute
 local api = vim.api
 
-function M.buf_to_minimap(x, y)
+function M.buf_to_minimap(col0, row0)
   local config = require('codewindow.config').get()
-  local minimap_x = math.floor((x - 1) / config.width_multiplier / 2) + 1
-  local minimap_y = math.floor((y - 1) / 4) + 1
-  return minimap_x, minimap_y
+  local minimap_x_idx = math.floor(col0 / config.width_multiplier / 2) + 1
+  local minimap_y_idx = math.floor(row0 / 4) + 1
+  return minimap_x_idx, minimap_y_idx
 end
 
 local braille_chars = "⠀⠁⠂⠃⠄⠅⠆⠇⡀⡁⡂⡃⡄⡅⡆⡇⠈⠉⠊⠋⠌⠍⠎⠏⡈⡉⡊⡋⡌⡍⡎⡏"
@@ -20,6 +20,10 @@ local braille_chars = "⠀⠁⠂⠃⠄⠅⠆⠇⡀⡁⡂⡃⡄⡅⡆⡇⠈⠉⠊
     "⢐⢑⢒⢓⢔⢕⢖⢗⣐⣑⣒⣓⣔⣕⣖⣗⢘⢙⢚⢛⢜⢝⢞⢟⣘⣙⣚⣛⣜⣝⣞⣟" ..
     "⢠⢡⢢⢣⢤⢥⢦⢧⣠⣡⣢⣣⣤⣥⣦⣧⢨⢩⢪⢫⢬⢭⢮⢯⣨⣩⣪⣫⣬⣭⣮⣯" ..
     "⢰⢱⢲⢳⢴⢵⢶⢷⣰⣱⣲⣳⣴⣵⣶⣷⢸⢹⢺⢻⢼⢽⢾⢿⣸⣹⣺⣻⣼⣽⣾⣿"
+
+function M.coord_to_flag(x0, y0)
+  return math.pow(2, y0 % 4) * ((x0 % 2 == 0) and 1 or 16)
+end
 
 function M.flag_to_char(flag)
   return braille_chars:sub(flag * 3 + 1, (flag + 1) * 3)

@@ -6,20 +6,13 @@ local utils = require('codewindow.utils')
 
 local api = vim.api
 
-local tab2chars = string.rep(" ", vim.opt.tabstop:get())
-
 local function is_whitespace(chr)
   return chr == " " or chr == "\t" or chr == ""
 end
 
-local function coord_to_flag(x, y)
-  x = x - 1
-  y = y - 1
-  return math.pow(2, y % 4) * ((x % 2 == 0) and 1 or 16)
-end
-
 local function compress_text(lines)
   local config = require('codewindow.config').get()
+  local tab2chars = string.rep(" ", vim.bo.tabstop)
   local scanned_text = {}
   for _ = 1, math.ceil(#lines / 4) do
     local line = {}
@@ -29,24 +22,25 @@ local function compress_text(lines)
     table.insert(scanned_text, line)
   end
 
-  for y = 1, #lines do
-    local current_line = lines[y]:gsub("\t", tab2chars)
-    for x = 1, config.minimap_width * 2 do
+  for line_idx = 1, #lines do
+    local row0 = line_idx - 1
+    local current_line = lines[line_idx]:gsub("\t", tab2chars)
+    for braille_x0 = 0, config.minimap_width * 2 - 1 do
 
       local any_printable = false
-      for dx = 1, config.width_multiplier do
-        local actual_x = (x - 1) * config.width_multiplier + (dx - 1) + 1
-        local chr = current_line:sub(actual_x, actual_x)
+      for dx = 0, config.width_multiplier - 1 do
+        local buf_col0 = braille_x0 * config.width_multiplier + dx
+        local chr = current_line:sub(buf_col0 + 1, buf_col0 + 1)
         if not is_whitespace(chr) then
           any_printable = true
         end
       end
 
       if any_printable then
-        local flag = coord_to_flag(x, y)
-        local chr_x = math.floor((x - 1) / 2) + 1
-        local chr_y = math.floor((y - 1) / 4) + 1
-        scanned_text[chr_y][chr_x] = scanned_text[chr_y][chr_x] + flag
+        local flag = utils.coord_to_flag(braille_x0, row0)
+        local minimap_x_idx = math.floor(braille_x0 / 2) + 1
+        local minimap_y_idx = math.floor(row0 / 4) + 1
+        scanned_text[minimap_y_idx][minimap_x_idx] = scanned_text[minimap_y_idx][minimap_x_idx] + flag
       end
     end
   end
@@ -78,7 +72,7 @@ function M.update_minimap(current_buffer, window)
 
   local error_text
   if config.use_lsp then
-    error_text = minimap_err.get_lsp_errors(current_buffer)
+    error_text = minimap_err.get_lsp_errors(current_buffer, #lines)
   else
     error_text = {}
   end

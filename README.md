@@ -4,6 +4,13 @@ Codewindow.nvim is a minimap plugin for neovim, that is closely integrated with 
 
 ![Codewindow in action](https://i.imgur.com/MokAFG0.png)
 
+## Requirements
+
+- **Neovim >= 0.8**
+- Treesitter parsers installed for filetypes you want highlighted (e.g. via [nvim-treesitter](https://github.com/nvim-treesitter/nvim-treesitter))
+
+> **Note:** This plugin uses Neovim's built-in `vim.treesitter` API. It does not depend on the `nvim-treesitter` plugin itself, but you will need the appropriate parsers installed for syntax highlighting to work.
+
 ## How it works
 
 Opening the minimap creates a floating window that will follow the active window around, always staying on the right, filling the entire height of said window.
@@ -43,7 +50,7 @@ The setup method accepts an optional table as an argument with the following opt
   max_lines = nil, -- If auto_enable is true, don't open the minimap for buffers which have more than this many lines.
   minimap_width = 20, -- The width of the text part of the minimap
   use_lsp = true, -- Use the builtin LSP to show errors and warnings
-  use_treesitter = true, -- Use nvim-treesitter to highlight the code
+  use_treesitter = true, -- Use built-in treesitter to highlight the code
   use_git = true, -- Show small dots to indicate git additions and deletions
   width_multiplier = 4, -- How many characters one dot represents
   z_index = 1, -- The z-index the floating window will be on

@@ -98,16 +98,13 @@ local function extract_highlighting(buffer, lines)
       if hl then
         local c = query._query.captures[capture]
         if c ~= nil then
-          local start_row, start_col, end_row, end_col = vim.treesitter.get_node_range(node)
-          start_row = start_row + 1
-          start_col = start_col + 1
-          end_row = end_row + 1
-          end_col = end_col + 1
+          local start_row0, start_col0, end_row0, end_col0 = vim.treesitter.get_node_range(node)
 
-          for y = start_row, end_row do
-            for x = start_col, math.min(end_col, minimap_char_width) do
-              local minimap_x, minimap_y = utils.buf_to_minimap(x, y)
-              highlights[minimap_y][minimap_x][c] = (highlights[minimap_y][minimap_x][c] or 0) + 1
+          local last_row0 = math.max(start_row0, math.min(end_row0 - 1, line_count - 1))
+          for row0 = start_row0, last_row0 do
+            for col0 = start_col0, math.min(end_col0 - 1, minimap_char_width - 1) do
+              local minimap_x_idx, minimap_y_idx = utils.buf_to_minimap(col0, row0)
+              highlights[minimap_y_idx][minimap_x_idx][c] = (highlights[minimap_y_idx][minimap_x_idx][c] or 0) + 1
             end
           end
         end
@@ -269,7 +266,7 @@ function M.display_cursor(window)
   end
   local cursor = api.nvim_win_get_cursor(window.parent_win)
 
-  local minimap_x, minimap_y = utils.buf_to_minimap(cursor[2] + 1, cursor[1])
+  local minimap_x, minimap_y = utils.buf_to_minimap(cursor[2], cursor[1] - 1)
 
   minimap_x = minimap_x + 2 - 1
   minimap_y = minimap_y - 1

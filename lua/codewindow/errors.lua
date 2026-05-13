@@ -3,41 +3,40 @@ local M = {}
 local utils = require 'codewindow.utils'
 
 local diagnostic = vim.diagnostic
+local CELL_HEIGHT = 4
+local FLAGS = { 1, 2, 4, 8 }
 
-function M.get_lsp_errors(buffer)
-  local lines = vim.api.nvim_buf_get_lines(buffer, 0, -1, true)
+function M.get_lsp_errors(buffer, line_count)
   local error_lines = {}
-  for _ = 1, #lines do
+  for _ = 1, line_count do
     table.insert(error_lines, { warn = false, err = false })
   end
 
   local errors = diagnostic.get(buffer, { severity = { min = diagnostic.severity.WARN } })
   for _, v in ipairs(errors) do
-    if v.severity == diagnostic.severity.WARN then
-      if v.lnum + 1 <= #error_lines then
-        error_lines[v.lnum + 1].warn = true
-      end
-    else
-      if v.lnum + 1 <= #error_lines then
-        error_lines[v.lnum + 1].err = true
+    local line_idx = v.lnum + 1
+    if line_idx <= line_count then
+      if v.severity == diagnostic.severity.WARN then
+        error_lines[line_idx].warn = true
+      else
+        error_lines[line_idx].err = true
       end
     end
   end
 
   local error_text = {}
-  for i = 1, #error_lines + 3, 4 do
+  for block_start_idx = 1, line_count + CELL_HEIGHT - 1, CELL_HEIGHT do
     local err_flag = 0
     local warn_flag = 0
 
-    local flags = { 1, 2, 4, 8 }
-
-    for di = 0, 3 do
-      if error_lines[i + di] then
-        if error_lines[i + di].err then
-          err_flag = err_flag + flags[di + 1]
+    for row_offset = 0, CELL_HEIGHT - 1 do
+      local line_idx = block_start_idx + row_offset
+      if error_lines[line_idx] then
+        if error_lines[line_idx].err then
+          err_flag = err_flag + FLAGS[row_offset + 1]
         end
-        if error_lines[i + di].warn then
-          warn_flag = warn_flag + flags[di + 1]
+        if error_lines[line_idx].warn then
+          warn_flag = warn_flag + FLAGS[row_offset + 1]
         end
       end
     end
