@@ -166,7 +166,9 @@ local function setup_minimap_autocmds(parent_buf, on_switch_window, on_cursor_mo
         render_timer:start(80, 0, vim.schedule_wrap(on_render_timer))
       else
         defer(function()
-          renderer.render(window, api.nvim_win_get_buf(window.parent_win))
+          if window and api.nvim_win_is_valid(window.parent_win or -1) then
+            renderer.render(window, api.nvim_win_get_buf(window.parent_win))
+          end
         end)
       end
     end,
