@@ -59,7 +59,28 @@ end
 
 local augroup
 
+local saved_guicursor = nil
+local closing = false
+
+local function hide_cursor()
+  saved_guicursor = vim.o.guicursor
+  vim.o.guicursor = 'a:ver1'
+end
+
+local function restore_cursor()
+  if saved_guicursor == nil then
+    return
+  end
+  vim.o.guicursor = saved_guicursor
+  saved_guicursor = nil
+end
+
 function M.close_minimap()
+  if window == nil or closing then
+    return
+  end
+  closing = true
+  restore_cursor()
   if api.nvim_buf_is_valid(window.buffer) then
     api.nvim_buf_delete(window.buffer, { force = true });
   end
@@ -68,6 +89,7 @@ function M.close_minimap()
   end
   require('codewindow.git').clear(window.parent_win and vim.api.nvim_win_get_buf(window.parent_win) or nil)
   window = nil
+  closing = false
 end
 
 local function get_window_height(current_window)
@@ -179,20 +201,20 @@ local function setup_minimap_autocmds(parent_buf, on_switch_window, on_cursor_mo
     end
   })
 
-  -- only render when `show_cursor` is on
+  api.nvim_create_autocmd({ 'CursorMoved' }, {
+    buffer = window.buffer,
+    callback = function()
+      local topline = utils.get_top_line(window.parent_win)
+      local botline = utils.get_bot_line(window.parent_win)
+      local center = math.floor((topline + botline) / 2 / 4)
+      local row = api.nvim_win_get_cursor(window.window)[1] - 1
+      local diff = row - center
+      scroll_parent_window(diff * 4)
+    end,
+    group = augroup,
+  })
+
   if config.show_cursor then
-    api.nvim_create_autocmd({ 'CursorMoved' }, {
-      buffer = window.buffer,
-      callback = function()
-        local topline = utils.get_top_line(window.parent_win)
-        local botline = utils.get_bot_line(window.parent_win)
-        local center = math.floor((topline + botline) / 2 / 4)
-        local row = api.nvim_win_get_cursor(window.window)[1] - 1
-        local diff = row - center
-        scroll_parent_window(diff * 4)
-      end,
-      group = augroup,
-    })
     api.nvim_create_autocmd({ 'CursorMoved' }, {
       callback = function()
         on_cursor_move()
@@ -287,9 +309,11 @@ function M.set_focused(value)
   end
   window.focused = value
   if window.focused then
+    hide_cursor()
     api.nvim_set_current_win(window.window)
   else
     api.nvim_set_current_win(window.parent_win)
+    restore_cursor()
   end
 end
 
