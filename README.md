@@ -18,9 +18,9 @@ Opening the minimap creates a floating window that will follow the active window
 In this floating window you can see the text rendered out using braille characters. Unless disabled, it will also try to get the treesitter highlights from the active buffer and apply them to the minimap[^1]. If the builtin LSP reports an error
 or a warning, it will also appear as a small red or yellow dot next to the line the issue is in. The current viewport is shown as 2 white lines around the block of code being observed.
 
-The minimap updates every time you leave insert mode, change the text in normal mode or the builtin LSP reports new diagnostics.
+The minimap updates every time you leave insert mode, change the text in normal mode or the builtin LSP reports new diagnostics. `TextChanged` events are debounced (80ms) to avoid lag during fast typing.
 
-You can also focus the minimap, this lets you quickly move through the code to get to a specific point.
+You can also focus the minimap, this lets you quickly move through the code to get to a specific point. When focused, the cursor is hidden globally for a cleaner navigation experience.
 
 [^1]: Because one character in the minimap represents several in the actual buffer, it will show the highlights that occured the most in that region.
 
@@ -44,10 +44,10 @@ The setup method accepts an optional table as an argument with the following opt
 ```lua
 {
   active_in_terminals = false, -- Should the minimap activate for terminal buffers
-  auto_enable = false, -- Automatically open the minimap when entering a (non-excluded) buffer (accepts a table of filetypes)
+  auto_enable = false, -- Automatically open the minimap when entering a (non-excluded) buffer (accepts a boolean or a table of filetypes)
   exclude_filetypes = { 'help' }, -- Choose certain filetypes to not show minimap on
   max_minimap_height = nil, -- The maximum height the minimap can take (including borders)
-  max_lines = nil, -- If auto_enable is true, don't open the minimap for buffers which have more than this many lines.
+  max_lines = nil, -- Don't render the minimap for buffers with more than this many lines (keeps editing large files responsive)
   minimap_width = 20, -- The width of the text part of the minimap
   use_lsp = true, -- Use the builtin LSP to show errors and warnings
   use_treesitter = true, -- Use built-in treesitter to highlight the code
@@ -55,9 +55,9 @@ The setup method accepts an optional table as an argument with the following opt
   width_multiplier = 4, -- How many characters one dot represents
   z_index = 1, -- The z-index the floating window will be on
   show_cursor = true, -- Show the cursor position in the minimap
-  screen_bounds = 'lines' -- How the visible area is displayed, "lines": lines above and below, "background": background color
-  window_border = 'single' -- The border style of the floating window (accepts all usual options)
-  relative = 'win' -- What will be the minimap be placed relative to, "win": the current window, "editor": the entire editor
+  screen_bounds = 'lines', -- How the visible area is displayed, "lines": lines above and below, "background": background color
+  window_border = 'single', -- The border style of the floating window (accepts all usual options)
+  relative = 'win', -- What will the minimap be placed relative to, "win": the current window, "editor": the entire editor
   events = { 'TextChanged', 'InsertLeave', 'DiagnosticChanged', 'FileWritePost' } -- Events that update the code window
 }
 ```
@@ -65,13 +65,18 @@ config changes get merged in with defaults, so defining every config option is u
 
 The default keybindings are as follows:
 ```
-<leader>mo - open the minimap
-<leader>mc - close the minimap
 <leader>mf - focus/unfocus the minimap
 <leader>mm - toggle the minimap
 ```
 
-To create your own keybindings, you can use the functions:
+`open_minimap` and `close_minimap` are no longer bound by default. If you want them, set them up manually:
+
+```lua
+vim.keymap.set('n', '<leader>mo', codewindow.open_minimap, { desc = 'Open minimap' })
+vim.keymap.set('n', '<leader>mc', codewindow.close_minimap, { desc = 'Close minimap' })
+```
+
+All available functions:
 ```lua
 codewindow.open_minimap()
 codewindow.close_minimap()
@@ -103,7 +108,13 @@ For the most part most plugins can simply be made to work by making them ignore 
 
 ## Performance
 
-I tested the performance on the `lua/codewindow/highlight.lua` file in the repository, which was at the time of testing 179 lines long. Updating the minimap took 7.7ms on average.
+The minimap is optimized to stay responsive even in large files:
+
+- **changedtick caching**: Scrolling and cursor movement skip Braille re-compression and treesitter highlighting if the buffer hasn't changed.
+- **Debounced `TextChanged`**: Fast typing triggers an 80ms debounce instead of re-rendering on every keystroke.
+- **`max_lines` guard**: Buffers above the threshold render an empty minimap, keeping Neovim responsive in generated bundles or log files.
+
+On a ~180 line file, a full render (cold cache) takes ~7ms. Cached renders (scroll, cursor move) are effectively free.
 
 ## Related projects
 
@@ -113,7 +124,5 @@ I tested the performance on the `lua/codewindow/highlight.lua` file in the repos
 ## TODO
 
 - Help pages for the functions
-- Faster updates - theoretically only the lines that were edited need updating
-- Git support - I have a free column on the right reserved for it
+- Incremental line-range updates - only re-compress Braille rows that overlap edited lines
 - More display options - like floating to the left, not full height, etc. etc.
-- Code cleanup - I'm putting this on the bottom, because I know I won't get to it

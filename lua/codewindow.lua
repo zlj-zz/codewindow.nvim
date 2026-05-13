@@ -46,9 +46,7 @@ function M.toggle_minimap()
 end
 
 function M.apply_default_keybinds()
-  vim.keymap.set('n', '<leader>mo', M.open_minimap, { desc = 'Open minimap' })
   vim.keymap.set('n', '<leader>mf', M.toggle_focus, { desc = 'Toggle minimap focus' })
-  vim.keymap.set('n', '<leader>mc', M.close_minimap, { desc = 'Close minimap' })
   vim.keymap.set('n', '<leader>mm', M.toggle_minimap, { desc = 'Toggle minimap' })
 end
 
