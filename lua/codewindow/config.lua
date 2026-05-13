@@ -13,8 +13,8 @@ local config = {
   width_multiplier = 4,
   z_index = 1,
   show_cursor = true,
-  screen_bounds = "lines",
-  window_border = "single",
+  screen_bounds = "background",
+  window_border = "none",
   relative = "win",
   events = { "TextChanged", "InsertLeave", "DiagnosticChanged", "FileWritePost" },
 }
