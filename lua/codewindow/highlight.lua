@@ -94,10 +94,10 @@ local function extract_highlighting(buffer, lines)
     local iter = query:query():iter_captures(root, buf_highlighter.bufnr, 0, line_count + 1)
 
     for capture, node, _ in iter do
-      local hl = query.hl_cache[capture]
-      if hl then
-        local c = query._query.captures[capture]
-        if c ~= nil then
+      local c = query:query().captures[capture]
+      if c ~= nil then
+        local hl = query.hl_cache[capture]
+        if hl then
           local start_row0, start_col0, end_row0, end_col0 = vim.treesitter.get_node_range(node)
 
           local last_row0 = math.max(start_row0, math.min(end_row0 - 1, line_count - 1))
