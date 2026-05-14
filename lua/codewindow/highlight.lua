@@ -11,26 +11,52 @@ local cursor_namespace
 local api = vim.api
 local highlight_range = vim.highlight.range
 
+local capture_category = {
+  keyword = "keyword",
+  ["keyword.function"] = "keyword",
+  ["keyword.operator"] = "keyword",
+  ["keyword.return"] = "keyword",
+  conditional = "keyword",
+  ["repeat"] = "keyword",
+  operator = "keyword",
+  exception = "keyword",
+  string = "string",
+  ["string.documentation"] = "string",
+  ["string.regex"] = "string",
+  ["string.escape"] = "string",
+  character = "string",
+  number = "string",
+  float = "string",
+  boolean = "string",
+  comment = "comment",
+  ["comment.documentation"] = "comment",
+}
+
+local function normalize_capture(capture)
+  return capture_category[capture]
+end
+
 function M.setup()
   hl_namespace = api.nvim_create_namespace("codewindow.highlight")
   screenbounds_namespace = api.nvim_create_namespace("codewindow.screenbounds")
   diagnostic_namespace = api.nvim_create_namespace("codewindow.diagnostic")
   cursor_namespace = api.nvim_create_namespace("codewindow.cursor")
 
-  api.nvim_set_hl(0, "CodewindowBackground", { link = "Normal", default = true })
+  api.nvim_set_hl(0, "CodewindowBackground", { link = "NormalFloat", default = true })
   api.nvim_set_hl(0, "CodewindowBorder", { fg = "#ffffff", default = true })
   api.nvim_set_hl(0, "CodewindowWarn", { link = "DiagnosticSignWarn", default = true })
   api.nvim_set_hl(0, "CodewindowError", { link = "DiagnosticSignError", default = true })
   api.nvim_set_hl(0, "CodewindowAddition", { fg = "#aadb56", default = true })
   api.nvim_set_hl(0, "CodewindowDeletion", { fg = "#fc4c4c", default = true })
   api.nvim_set_hl(0, "CodewindowUnderline", { underline = true, sp = "#ffffff", default = true })
-  api.nvim_set_hl(0, "CodewindowBoundsBackground", { link = "CursorLine", default = true })
+  api.nvim_set_hl(0, "CodewindowBoundsBackground", { bg = "#2d2d2d", default = true })
 end
 
 local function create_hl_namespaces(buffer)
   api.nvim_buf_clear_namespace(buffer, hl_namespace, 0, -1)
   api.nvim_buf_clear_namespace(buffer, screenbounds_namespace, 0, -1)
   api.nvim_buf_clear_namespace(buffer, diagnostic_namespace, 0, -1)
+  api.nvim_buf_clear_namespace(buffer, cursor_namespace, 0, -1)
 end
 
 local function most_commons(highlight)
@@ -63,6 +89,11 @@ function M.extract_highlighting(buffer, lines)
   local width_multiplier = config.width_multiplier
   local minimap_char_width = minimap_width * width_multiplier * 2
 
+  local leading_cache = {}
+  for i = 1, line_count do
+    leading_cache[i] = utils.leading_whitespace_len(lines[i])
+  end
+
   local highlights = {}
   for _ = 1, minimap_height do
     local line = {}
@@ -87,13 +118,20 @@ function M.extract_highlighting(buffer, lines)
       for capture, node, _ in iter do
         local c = query.captures[capture]
         if c ~= nil then
-          local start_row0, start_col0, end_row0, end_col0 = vim.treesitter.get_node_range(node)
+          if config.minimal_highlights then
+            c = normalize_capture(c)
+          end
+          if c then
+            local start_row0, start_col0, end_row0, end_col0 = vim.treesitter.get_node_range(node)
 
-          local last_row0 = math.max(start_row0, math.min(end_row0 - 1, line_count - 1))
-          for row0 = start_row0, last_row0 do
-            for col0 = start_col0, math.min(end_col0 - 1, minimap_char_width - 1) do
-              local minimap_x_idx, minimap_y_idx = utils.buf_to_minimap(col0, row0, config)
-              highlights[minimap_y_idx][minimap_x_idx][c] = (highlights[minimap_y_idx][minimap_x_idx][c] or 0) + 1
+            local last_row0 = math.max(start_row0, math.min(end_row0 - 1, line_count - 1))
+            for row0 = start_row0, last_row0 do
+              local leading = leading_cache[row0 + 1]
+              for col0 = math.max(start_col0, leading), math.min(end_col0 - 1, minimap_char_width - 1) do
+                local adjusted_col0 = col0 - leading
+                local minimap_x_idx, minimap_y_idx = utils.buf_to_minimap(adjusted_col0, row0, config)
+                highlights[minimap_y_idx][minimap_x_idx][c] = (highlights[minimap_y_idx][minimap_x_idx][c] or 0) + 1
+              end
             end
           end
         end
@@ -233,7 +271,7 @@ function M.display_screen_bounds(window)
   end
 
   local center = math.floor((top_y + bot_y) / 2) + 1
-  if api.nvim_win_is_valid(window.window) then
+  if window.focused and api.nvim_win_is_valid(window.window) then
     api.nvim_win_set_cursor(window.window, { center, 0 })
   end
 end
@@ -251,7 +289,15 @@ function M.display_cursor(window)
   end
   local cursor = api.nvim_win_get_cursor(window.parent_win)
 
-  local minimap_x, minimap_y = utils.buf_to_minimap(cursor[2], cursor[1] - 1)
+  local cursor_line = api.nvim_buf_get_lines(window.parent_win, cursor[1] - 1, cursor[1], true)[1] or ""
+  local leading = utils.leading_whitespace_len(cursor_line)
+
+  local before_cursor = cursor_line:sub(1, cursor[2])
+  local expanded_before = utils.expand_line(before_cursor)
+  local cursor_col = math.max(#expanded_before, leading)
+  local adjusted_col = cursor_col - leading
+
+  local minimap_x, minimap_y = utils.buf_to_minimap(adjusted_col, cursor[1] - 1)
 
   minimap_x = minimap_x + 2 - 1
   minimap_y = minimap_y - 1

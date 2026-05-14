@@ -1,7 +1,6 @@
 local M = {}
 
 local utils = require('codewindow.utils')
-local api = vim.api
 
 local function is_whitespace(chr)
   return chr == " " or chr == "\t" or chr == ""
@@ -9,7 +8,6 @@ end
 
 function M.compress_text(lines)
   local config = require('codewindow.config').get()
-  local tab2chars = string.rep(" ", vim.bo.tabstop)
   local minimap_width2 = config.minimap_width * 2
   local width_mult = config.width_multiplier
   local scanned_text = {}
@@ -23,10 +21,8 @@ function M.compress_text(lines)
 
   for line_idx = 1, #lines do
     local row0 = line_idx - 1
-    local current_line = lines[line_idx]
-    if current_line:find("\t") then
-      current_line = current_line:gsub("\t", tab2chars)
-    end
+    local current_line = utils.expand_line(lines[line_idx])
+    current_line = current_line:match("^%s*(.*)$") or ""
     for braille_x0 = 0, minimap_width2 - 1 do
       local any_printable = false
       for dx = 0, width_mult - 1 do

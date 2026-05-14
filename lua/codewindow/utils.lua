@@ -1,7 +1,6 @@
 local M = {}
 
 local get_line = vim.fn.line
-local exe = vim.cmd.execute
 local api = vim.api
 
 function M.buf_to_minimap(col0, row0, cfg)
@@ -61,7 +60,9 @@ function M.scroll_window(window, amount)
         return
       end
       local max_move_down = math.min(amount, height - botline)
-      exe(string.format("\"normal! %d\\<C-e>\"", max_move_down))
+      local view = vim.fn.winsaveview()
+      view.topline = view.topline + max_move_down
+      vim.fn.winrestview(view)
     else
       amount = -amount
       if window == nil then
@@ -72,9 +73,22 @@ function M.scroll_window(window, amount)
         return
       end
       local max_move_up = math.min(amount, topline - 1)
-      exe(string.format("\"normal! %d\\<C-y>\"", max_move_up))
+      local view = vim.fn.winsaveview()
+      view.topline = view.topline - max_move_up
+      vim.fn.winrestview(view)
     end
   end)
+end
+
+function M.expand_line(line)
+  local tabstop = vim.bo.tabstop
+  return line:gsub("\t", string.rep(" ", tabstop))
+end
+
+function M.leading_whitespace_len(line)
+  local expanded = M.expand_line(line)
+  local _, leading_end = expanded:find("^%s*")
+  return leading_end or 0
 end
 
 return M

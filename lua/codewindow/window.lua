@@ -80,32 +80,6 @@ local function on_render_timer()
   end
 end
 
-function M.close_minimap()
-  if window == nil or closing then
-    return
-  end
-  closing = true
-  if render_timer then
-    render_timer:stop()
-    render_timer:close()
-    render_timer = nil
-  end
-  restore_cursor()
-  if api.nvim_buf_is_valid(window.buffer or -1) then
-    api.nvim_buf_delete(window.buffer, { force = true })
-  end
-  if augroup then
-    api.nvim_clear_autocmds({ group = augroup })
-  end
-  local parent_buf = window.parent_win
-      and api.nvim_win_is_valid(window.parent_win)
-      and api.nvim_win_get_buf(window.parent_win)
-    or nil
-  require("codewindow.git").clear(parent_buf)
-  window = nil
-  closing = false
-end
-
 local function get_window_height(current_window)
   local window_height = vim.fn.winheight(current_window)
   return window_height
@@ -136,6 +110,32 @@ local function get_window_config(current_window)
     style = "minimal",
     border = config.window_border,
   }
+end
+
+function M.close_minimap()
+  if window == nil or closing then
+    return
+  end
+  closing = true
+  if render_timer then
+    render_timer:stop()
+    render_timer:close()
+    render_timer = nil
+  end
+  restore_cursor()
+  if api.nvim_buf_is_valid(window.buffer or -1) then
+    api.nvim_buf_delete(window.buffer, { force = true })
+  end
+  if augroup then
+    api.nvim_clear_autocmds({ group = augroup })
+  end
+  local parent_buf = window.parent_win
+      and api.nvim_win_is_valid(window.parent_win)
+      and api.nvim_win_get_buf(window.parent_win)
+    or nil
+  require("codewindow.git").clear(parent_buf)
+  window = nil
+  closing = false
 end
 
 local function setup_minimap_autocmds(parent_buf, on_switch_window, on_cursor_move)
@@ -328,6 +328,7 @@ function M.create_window(buffer, on_switch_window, on_cursor_move)
     local minimap_win = api.nvim_open_win(minimap_buf, false, get_window_config(current_window))
 
     api.nvim_win_set_option(minimap_win, "winhl", "Normal:CodewindowBackground,FloatBorder:CodewindowBorder")
+    api.nvim_win_set_option(minimap_win, "cursorline", false)
 
     window = {
       buffer = minimap_buf,
