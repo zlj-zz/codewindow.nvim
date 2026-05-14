@@ -1,6 +1,5 @@
 local M = {}
 
-local config = require("codewindow.config").get()
 local utils = require("codewindow.utils")
 
 local hl_namespace
@@ -10,6 +9,8 @@ local cursor_namespace
 
 local api = vim.api
 local highlight_range = vim.highlight.range
+
+local last_screen_bounds = {}
 
 local capture_category = {
   keyword = "keyword",
@@ -74,6 +75,7 @@ local function most_commons(highlight)
 end
 
 function M.extract_highlighting(buffer, lines)
+  local config = require("codewindow.config").get()
   if not config.use_treesitter or not api.nvim_buf_is_valid(buffer or -1) then
     return
   end
@@ -110,6 +112,9 @@ function M.extract_highlighting(buffer, lines)
   end
 
   local trees = parser:parse()
+  if not trees then
+    return highlights
+  end
   for _, tstree in ipairs(trees) do
     if tstree then
       local root = tstree:root()
@@ -161,6 +166,7 @@ local function contains_group(cell, group)
 end
 
 function M.apply_highlight(highlights, buffer, lines)
+  local config = require("codewindow.config").get()
   local minimap_height = math.ceil(#lines / 4)
   local minimap_width = config.minimap_width
 
@@ -180,7 +186,11 @@ function M.apply_highlight(highlights, buffer, lines)
               end_x = end_x + 1
               highlights[y][x][pos] = ""
             end
-            api.nvim_buf_add_highlight(buffer, hl_namespace, "@" .. group, y - 1, (x - 1) * 3 + 6, end_x * 3 + 6)
+            api.nvim_buf_set_extmark(buffer, hl_namespace, y - 1, (x - 1) * 3 + 6, {
+              end_col = end_x * 3 + 6,
+              hl_group = "@" .. group,
+              strict = false,
+            })
           end
         end
       end
@@ -188,8 +198,16 @@ function M.apply_highlight(highlights, buffer, lines)
   end
 
   for y = 1, minimap_height do
-    api.nvim_buf_add_highlight(buffer, diagnostic_namespace, "CodewindowError", y - 1, 0, 3)
-    api.nvim_buf_add_highlight(buffer, diagnostic_namespace, "CodewindowWarn", y - 1, 3, 6)
+    api.nvim_buf_set_extmark(buffer, diagnostic_namespace, y - 1, 0, {
+      end_col = 3,
+      hl_group = "CodewindowError",
+      strict = false,
+    })
+    api.nvim_buf_set_extmark(buffer, diagnostic_namespace, y - 1, 3, {
+      end_col = 6,
+      hl_group = "CodewindowWarn",
+      strict = false,
+    })
 
     local git_start = 6 + 3 * config.minimap_width
     highlight_range(
@@ -212,10 +230,10 @@ function M.apply_highlight(highlights, buffer, lines)
 end
 
 function M.display_screen_bounds(window)
+  local config = require("codewindow.config").get()
   if screenbounds_namespace == nil then
     return
   end
-  api.nvim_buf_clear_namespace(window.buffer, screenbounds_namespace, 0, -1)
 
   local topline = utils.get_top_line(window.parent_win)
   local botline = utils.get_bot_line(window.parent_win)
@@ -223,18 +241,6 @@ function M.display_screen_bounds(window)
   local difference = math.ceil((botline - topline) / 4) + 1
 
   local top_y = math.floor(topline / 4)
-
-  if top_y > 0 and config.screen_bounds == "lines" then
-    api.nvim_buf_add_highlight(
-      window.buffer,
-      screenbounds_namespace,
-      "CodewindowUnderline",
-      top_y - 1,
-      6,
-      6 + config.minimap_width * 3
-    )
-  end
-
   local bot_y = top_y + difference - 1
   local buf_height = api.nvim_buf_line_count(window.buffer)
 
@@ -246,27 +252,43 @@ function M.display_screen_bounds(window)
     return
   end
 
+  -- cache: skip if bounds unchanged
+  local cache = last_screen_bounds[window.buffer]
+  if cache and cache.top_y == top_y and cache.bot_y == bot_y and cache.mode == config.screen_bounds then
+    return
+  end
+  last_screen_bounds[window.buffer] = { top_y = top_y, bot_y = bot_y, mode = config.screen_bounds }
+
+  api.nvim_buf_clear_namespace(window.buffer, screenbounds_namespace, 0, -1)
+
+  if top_y > 0 and config.screen_bounds == "lines" then
+    api.nvim_buf_set_extmark(window.buffer, screenbounds_namespace, top_y - 1, 6, {
+      end_col = 6 + config.minimap_width * 3,
+      hl_group = "CodewindowUnderline",
+      strict = false,
+    })
+  end
+
   if config.screen_bounds == "lines" then
-    api.nvim_buf_add_highlight(
-      window.buffer,
-      screenbounds_namespace,
-      "CodewindowUnderline",
-      bot_y,
-      6,
-      6 + config.minimap_width * 3
-    )
+    api.nvim_buf_set_extmark(window.buffer, screenbounds_namespace, bot_y, 6, {
+      end_col = 6 + config.minimap_width * 3,
+      hl_group = "CodewindowUnderline",
+      strict = false,
+    })
   end
 
   if config.screen_bounds == "background" then
-    for y = top_y, bot_y do
-      api.nvim_buf_add_highlight(
-        window.buffer,
-        screenbounds_namespace,
-        "CodewindowBoundsBackground",
-        y,
-        6,
-        6 + config.minimap_width * 3
-      )
+    local end_col = 6 + config.minimap_width * 3
+    local line_text = api.nvim_buf_get_lines(window.buffer, top_y, top_y + 1, true)[1] or ""
+    if #line_text < end_col then
+      end_col = #line_text
+    end
+    if end_col > 6 then
+      api.nvim_buf_set_extmark(window.buffer, screenbounds_namespace, top_y, 6, {
+        end_line = bot_y + 1,
+        end_col = end_col,
+        hl_group = "CodewindowBoundsBackground",
+      })
     end
   end
 
@@ -277,6 +299,7 @@ function M.display_screen_bounds(window)
 end
 
 function M.display_cursor(window)
+  local config = require("codewindow.config").get()
   if not config.show_cursor then
     return
   end
@@ -303,7 +326,11 @@ function M.display_cursor(window)
   minimap_y = minimap_y - 1
 
   if api.nvim_buf_is_valid(window.buffer or -1) then
-    api.nvim_buf_add_highlight(window.buffer, cursor_namespace, "Cursor", minimap_y, minimap_x * 3, minimap_x * 3 + 3)
+    api.nvim_buf_set_extmark(window.buffer, cursor_namespace, minimap_y, minimap_x * 3, {
+      end_col = minimap_x * 3 + 3,
+      hl_group = "Cursor",
+      strict = false,
+    })
   end
 end
 

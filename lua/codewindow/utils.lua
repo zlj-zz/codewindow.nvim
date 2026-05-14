@@ -21,7 +21,7 @@ local braille_chars = "⠀⠁⠂⠃⠄⠅⠆⠇⡀⡁⡂⡃⡄⡅⡆⡇⠈⠉⠊
     "⢰⢱⢲⢳⢴⢵⢶⢷⣰⣱⣲⣳⣴⣵⣶⣷⢸⢹⢺⢻⢼⢽⢾⢿⣸⣹⣺⣻⣼⣽⣾⣿"
 
 function M.coord_to_flag(x0, y0)
-  return math.pow(2, y0 % 4) * ((x0 % 2 == 0) and 1 or 16)
+  return (2 ^ (y0 % 4)) * ((x0 % 2 == 0) and 1 or 16)
 end
 
 function M.flag_to_char(flag)

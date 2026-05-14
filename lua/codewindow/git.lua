@@ -1,6 +1,6 @@
 local M = {}
 
-local utils = require('codewindow.utils')
+local utils = require("codewindow.utils")
 
 local FLAGS = { 1, 2, 4, 8 }
 local MIN_REFRESH_MS = 100
@@ -16,13 +16,21 @@ local function get_state(bufnr)
 end
 
 local function set_equal(a, b)
-  if a == b then return true end
-  if not a or not b then return false end
+  if a == b then
+    return true
+  end
+  if not a or not b then
+    return false
+  end
   for k in pairs(a) do
-    if not b[k] then return false end
+    if not b[k] then
+      return false
+    end
   end
   for k in pairs(b) do
-    if not a[k] then return false end
+    if not a[k] then
+      return false
+    end
   end
   return true
 end
@@ -32,8 +40,8 @@ local function parse_diff_lines(diff_lines)
   local remove_lines = {}
 
   for _, line in ipairs(diff_lines) do
-    if line:sub(1, 2) == '@@' then
-      local d_start, d_lines, a_start, a_lines = line:match('@@ %-(%d+),(%d+) %+(%d+),?(%d*) @@')
+    if line:sub(1, 2) == "@@" then
+      local d_start, d_lines, a_start, a_lines = line:match("@@ %-(%d+),(%d+) %+(%d+),?(%d*) @@")
       if a_start ~= nil then
         a_start = tonumber(a_start)
         a_lines = a_lines == "" and 1 or tonumber(a_lines)
@@ -104,13 +112,13 @@ function M.refresh(bufnr, callback)
 
   state.pending = true
 
-  vim.system({ 'git', 'diff', '-U0', filepath }, { text = true }, function(obj)
+  vim.system({ "git", "diff", "-U0", filepath }, { text = true }, function(obj)
     state.pending = nil
     state.last_refresh = (vim.uv or vim.loop).now()
 
     local add_lines, remove_lines = {}, {}
     if obj.code == 0 and obj.stdout then
-      local diff_lines = vim.split(obj.stdout, '\n', { plain = true })
+      local diff_lines = vim.split(obj.stdout, "\n", { plain = true })
       add_lines, remove_lines = parse_diff_lines(diff_lines)
     end
 

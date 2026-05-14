@@ -32,12 +32,12 @@ function M.render(window, current_buffer)
   if not api.nvim_buf_is_valid(current_buffer or -1) then return end
   local config = require('codewindow.config').get()
 
-  api.nvim_buf_set_option(window.buffer, 'modifiable', true)
+  api.nvim_set_option_value('modifiable', true, { buf = window.buffer })
   local lines = api.nvim_buf_get_lines(current_buffer, 0, -1, true)
 
   if config.max_lines and #lines > config.max_lines then
     api.nvim_buf_set_lines(window.buffer, 0, -1, true, {})
-    api.nvim_buf_set_option(window.buffer, 'modifiable', false)
+    api.nvim_set_option_value('modifiable', false, { buf = window.buffer })
     render_cache[current_buffer] = nil
     return
   end
@@ -93,7 +93,7 @@ function M.render(window, current_buffer)
   end
 
   minimap_hl.display_screen_bounds(window)
-  api.nvim_buf_set_option(window.buffer, 'modifiable', false)
+  api.nvim_set_option_value('modifiable', false, { buf = window.buffer })
 end
 
 return M
