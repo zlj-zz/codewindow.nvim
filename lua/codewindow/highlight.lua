@@ -91,11 +91,6 @@ function M.extract_highlighting(buffer, lines)
   local width_multiplier = config.width_multiplier
   local minimap_char_width = minimap_width * width_multiplier * 2
 
-  local leading_cache = {}
-  for i = 1, line_count do
-    leading_cache[i] = utils.leading_whitespace_len(lines[i])
-  end
-
   local highlights = {}
   for _ = 1, minimap_height do
     local line = {}
@@ -131,10 +126,8 @@ function M.extract_highlighting(buffer, lines)
 
             local last_row0 = math.max(start_row0, math.min(end_row0 - 1, line_count - 1))
             for row0 = start_row0, last_row0 do
-              local leading = leading_cache[row0 + 1]
-              for col0 = math.max(start_col0, leading), math.min(end_col0 - 1, minimap_char_width - 1) do
-                local adjusted_col0 = col0 - leading
-                local minimap_x_idx, minimap_y_idx = utils.buf_to_minimap(adjusted_col0, row0, config)
+              for col0 = start_col0, math.min(end_col0 - 1, minimap_char_width - 1) do
+                local minimap_x_idx, minimap_y_idx = utils.buf_to_minimap(col0, row0, config)
                 highlights[minimap_y_idx][minimap_x_idx][c] = (highlights[minimap_y_idx][minimap_x_idx][c] or 0) + 1
               end
             end
@@ -313,14 +306,10 @@ function M.display_cursor(window)
   local cursor = api.nvim_win_get_cursor(window.parent_win)
 
   local cursor_line = api.nvim_buf_get_lines(window.parent_win, cursor[1] - 1, cursor[1], true)[1] or ""
-  local leading = utils.leading_whitespace_len(cursor_line)
-
   local before_cursor = cursor_line:sub(1, cursor[2])
-  local expanded_before = utils.expand_line(before_cursor)
-  local cursor_col = math.max(#expanded_before, leading)
-  local adjusted_col = cursor_col - leading
+  local cursor_col = #utils.expand_line(before_cursor)
 
-  local minimap_x, minimap_y = utils.buf_to_minimap(adjusted_col, cursor[1] - 1)
+  local minimap_x, minimap_y = utils.buf_to_minimap(cursor_col, cursor[1] - 1)
 
   minimap_x = minimap_x + 2 - 1
   minimap_y = minimap_y - 1

@@ -22,7 +22,6 @@ function M.compress_text(lines)
   for line_idx = 1, #lines do
     local row0 = line_idx - 1
     local current_line = utils.expand_line(lines[line_idx])
-    current_line = current_line:match("^%s*(.*)$") or ""
     for braille_x0 = 0, minimap_width2 - 1 do
       local any_printable = false
       for dx = 0, width_mult - 1 do
